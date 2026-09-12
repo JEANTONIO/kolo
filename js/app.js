@@ -87,19 +87,21 @@ async function favorite(id){
   if(error)showError(error.message);else alert('Annonce ajoutée aux favoris.');
 }
 
-async function contact(id){
-  if(!state.user)return login('Connecte-toi pour utiliser la messagerie.');
+function contact(id){
   const x=state.items.find(i=>Number(i.id)===Number(id));
   if(!x)return;
-  if(String(x.owner_id)===String(state.user.id))return showError('Tu ne peux pas te contacter toi-même.');
-  modal(`<span class="eyebrow">Messagerie</span><h2>${esc(x.seller_name)}</h2><form id="msg" class="form"><textarea name="body" required maxlength="2000" placeholder="Écris ton message..."></textarea><button type="submit" class="btn primary">Envoyer</button></form>`);
-  $('#msg').onsubmit=async e=>{
-    e.preventDefault();
-    const body=String(new FormData(e.target).get('body')||'').trim();
-    if(!body)return;
-    const {error}=await sb.from('messages').insert({sender_id:state.user.id,receiver_id:x.owner_id,listing_id:id,body});
-    if(error)showError(error.message);else{close();alert('Message envoyé.');}
-  };
+  if(String(x.owner_id)===String(state.user?.id||''))return showError('Tu ne peux pas te contacter toi-même.');
+
+  const phone=String(x.seller_phone||'').trim();
+  if(!phone){
+    return showError('Le numéro du vendeur n’est pas disponible pour cette annonce.');
+  }
+
+  // Le schéma tel: demande au système d’ouvrir l’application
+  // appropriée (Téléphone, FaceTime, Skype, etc. selon l’appareil).
+  const normalized=phone.replace(/[^0-9+]/g,'');
+  if(!normalized)return showError('Le numéro du vendeur est invalide.');
+  window.location.href=`tel:${normalized}`;
 }
 
 function login(message=''){
