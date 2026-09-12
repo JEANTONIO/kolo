@@ -168,7 +168,7 @@ async function dashboard(){
   if(!state.user)return login();
   const [{data:p,error:profileError},{data:mine,error:mineError},{data:favs,error:favError}]=await Promise.all([
     sb.from('profiles').select('*').eq('id',state.user.id).maybeSingle(),
-    sb.from('listings').select('*').eq('owner_id',state.user.id).order('created_at',{ascending:false}),
+    sb.from('listings').select('*').eq('owner_id',state.user.id).eq('status','active').order('created_at',{ascending:false}),
     sb.from('favorites').select('listing_id').eq('user_id',state.user.id)
   ]);
   if(profileError||mineError||favError)return showError((profileError||mineError||favError).message);
