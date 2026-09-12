@@ -191,11 +191,9 @@ async function deleteListing(id){
 
 function updateAuthUI(){
   const loggedIn=!!state.user;
-  $('#loginBtn').classList.toggle('hidden', false);
   $('#signupBtn').classList.toggle('hidden', loggedIn);
   $('#dashboardBtn').classList.toggle('hidden', !loggedIn);
   $('#publishBtn').classList.toggle('hidden', !loggedIn);
-  $('#loginBtn').textContent='Connexion';
 }
 
 async function refreshAuth(){
@@ -212,7 +210,6 @@ async function refreshAuth(){
 $('#searchForm').onsubmit=e=>{e.preventDefault();state.q=$('#q').value.trim();state.city=$('#city').value;render();location.hash='annonces'};
 $('#sort').onchange=e=>{state.sort=e.target.value;render()};
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.q;state.q=b.dataset.q;render();location.hash='annonces'});
-$('#loginBtn').onclick=login;
 $('#signupBtn').onclick=signup;
 $('#dashboardBtn').onclick=dashboard;
 $('#publishBtn').onclick=publish;
