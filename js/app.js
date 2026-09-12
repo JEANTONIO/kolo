@@ -193,6 +193,7 @@ async function deleteListing(id){
 
 function updateAuthUI(){
   const loggedIn=!!state.user;
+  $('#loginBtn').classList.toggle('hidden', loggedIn);
   $('#signupBtn').classList.toggle('hidden', loggedIn);
   $('#dashboardBtn').classList.toggle('hidden', !loggedIn);
   $('#publishBtn').classList.toggle('hidden', !loggedIn);
