@@ -103,16 +103,21 @@ async function contact(id){
 }
 
 function login(message=''){
-  modal(`<span class="eyebrow">Compte KÔLÔ</span><h2>Connexion</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="login" class="form"><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" minlength="6" required></label><button type="submit" class="btn primary">Se connecter</button></form><hr><h3>Créer un compte</h3><form id="signup" class="form"><label>Nom complet<input name="name" autocomplete="name" required></label><label>Téléphone<input name="phone" autocomplete="tel"></label><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="6" required></label><button type="submit" class="btn outline">Créer mon compte</button></form>`);
+  modal(`<span class="eyebrow">Compte KÔLÔ</span><h2>Se connecter</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="login" class="form"><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" minlength="6" required></label><button type="submit" class="btn primary">Se connecter</button></form>`);
   $('#login').onsubmit=async e=>{
     e.preventDefault();
     const f=new FormData(e.target);
     const {error}=await sb.auth.signInWithPassword({email:f.get('email'),password:f.get('password')});
     if(error)showError(error.message);else{close();await refreshAuth();}
   };
+}
+
+function signup(message=''){
+  modal(`<span class="eyebrow">Rejoindre KÔLÔ</span><h2>Créer un compte</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="signup" class="form"><label>Nom complet<input name="name" autocomplete="name" required></label><label>Téléphone<input name="phone" autocomplete="tel"></label><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="6" required></label><label class="privacy-check"><input name="privacy" type="checkbox" required> <span>J'accepte la <a href="confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a>.</span></label><button type="submit" class="btn primary">Créer mon compte</button></form>`);
   $('#signup').onsubmit=async e=>{
     e.preventDefault();
     const f=new FormData(e.target);
+    if(!f.get('privacy'))return showError('Tu dois accepter la Politique de confidentialité pour créer un compte.');
     const {data,error}=await sb.auth.signUp({email:f.get('email'),password:f.get('password'),options:{data:{full_name:f.get('name'),phone:f.get('phone')},emailRedirectTo:AUTH_REDIRECT_URL}});
     if(error)return showError(error.message);
     if(data.session){close();await refreshAuth();alert('Compte créé avec succès.');}
@@ -184,11 +189,20 @@ async function deleteListing(id){
   if(error)showError(error.message);else{close();await load();await dashboard();}
 }
 
+function updateAuthUI(){
+  const loggedIn=!!state.user;
+  $('#loginBtn').classList.toggle('hidden', false);
+  $('#signupBtn').classList.toggle('hidden', loggedIn);
+  $('#dashboardBtn').classList.toggle('hidden', !loggedIn);
+  $('#publishBtn').classList.toggle('hidden', !loggedIn);
+  $('#loginBtn').textContent='Connexion';
+}
+
 async function refreshAuth(){
   const {data,error}=await sb.auth.getSession();
   if(error){console.error(error);return;}
   state.user=data.session?.user||null;
-  $('#loginBtn').textContent=state.user?'Mon espace':'Connexion';
+  updateAuthUI();
   if(state.user?.email_confirmed_at){
     const {error:verifyError}=await sb.from('profiles').update({is_verified:true}).eq('id',state.user.id);
     if(verifyError) console.warn('Impossible de synchroniser la vérification du profil:',verifyError.message);
@@ -198,7 +212,9 @@ async function refreshAuth(){
 $('#searchForm').onsubmit=e=>{e.preventDefault();state.q=$('#q').value.trim();state.city=$('#city').value;render();location.hash='annonces'};
 $('#sort').onchange=e=>{state.sort=e.target.value;render()};
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{$('#q').value=b.dataset.q;state.q=b.dataset.q;render();location.hash='annonces'});
-$('#loginBtn').onclick=()=>state.user?dashboard():login();
+$('#loginBtn').onclick=login;
+$('#signupBtn').onclick=signup;
+$('#dashboardBtn').onclick=dashboard;
 $('#publishBtn').onclick=publish;
 $('#close').onclick=close;
 $('#modal').onclick=e=>{if(e.target.id==='modal')close()};
@@ -219,7 +235,7 @@ document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>$('#nav').classList
   await load();
   sb.auth.onAuthStateChange(async(_event,session)=>{
     state.user=session?.user||null;
-    $('#loginBtn').textContent=state.user?'Mon espace':'Connexion';
+    updateAuthUI();
     if(session?.user?.email_confirmed_at){
       const {error}=await sb.from('profiles').update({is_verified:true}).eq('id',session.user.id);
       if(error) console.warn('Synchronisation vérification:',error.message);
