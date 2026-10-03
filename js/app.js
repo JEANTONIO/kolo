@@ -14,6 +14,7 @@ const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const money=n=>new Intl.NumberFormat('fr-FR').format(Number(n)||0)+' FCFA';
 const AUTH_REDIRECT_URL='https://kolomarket.netlify.app/index.html';
+const PASSWORD_RESET_REDIRECT_URL='https://kolomarket.netlify.app/reset-password.html';
 const state={items:[],q:'',city:'',cat:'',sort:'newest',user:null};
 
 if(!window.KOLO_CONFIG?.SUPABASE_URL || !window.KOLO_CONFIG?.SUPABASE_ANON_KEY){
@@ -128,7 +129,7 @@ function login(message=''){
 async function forgotPassword(){
   const email=prompt('Entre l’adresse e-mail de ton compte KÔLÔ :');
   if(!email)return;
-  const {error}=await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo:AUTH_REDIRECT_URL});
+  const {error}=await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo:PASSWORD_RESET_REDIRECT_URL});
   if(error)return showError(error.message);
   alert('Un lien de réinitialisation a été envoyé à ton adresse e-mail.');
 }
@@ -270,8 +271,6 @@ document.querySelectorAll('a[href^="tel:"]').forEach(link=>{
   const hash=new URLSearchParams(location.hash.replace(/^#/,' '));
   const search=new URLSearchParams(location.search);
   const authError=hash.get('error_description')||search.get('error_description');
-  const recovery=hash.get('type')==='recovery' || search.get('type')==='recovery';
-  if(recovery) setTimeout(()=>updateForgottenPassword(),300);
   if(authError){
     console.error('Erreur de validation e-mail:',authError);
     history.replaceState({},document.title,location.pathname);

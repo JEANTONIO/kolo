@@ -26,6 +26,13 @@ Marketplace web Congo-Brazzaville en HTML/CSS/JavaScript + Supabase. Aucun Pytho
 ## Authentification
 Dans Supabase > Authentication > Providers, activer Email. Pour un lancement simple, tu peux désactiver temporairement la confirmation email, ou conserver la confirmation pour plus de sécurité.
 
+### Réinitialisation du mot de passe
+Le lien « Mot de passe oublié ? » utilise l'URL :
+`https://kolomarket.netlify.app/reset-password.html`
+
+Ajoute exactement cette URL dans Supabase > Authentication > URL Configuration > Redirect URLs.
+Après ouverture du lien reçu par e-mail, l'utilisateur arrive directement sur la page dédiée `reset-password.html`, saisit et confirme son nouveau mot de passe, puis peut revenir à la connexion.
+
 ## Images
 Le script SQL crée le bucket public `listing-images`. Les utilisateurs authentifiés peuvent envoyer leurs images dans leur propre dossier UUID.
 
