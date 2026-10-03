@@ -4,6 +4,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text default '',
+  shop_name text default '',
   phone text default '',
   city text default '',
   neighborhood text default '',
@@ -24,11 +25,16 @@ create table if not exists public.listings (
   emoji text default '📦',
   image_url text,
   seller_name text not null,
+  seller_shop_name text default '',
   seller_phone text,
   status text not null default 'active' check(status in('active','sold','hidden','deleted')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migrations sûres pour les bases existantes
+alter table public.profiles add column if not exists shop_name text default '';
+alter table public.listings add column if not exists seller_shop_name text default '';
 
 create table if not exists public.favorites (
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -69,15 +75,17 @@ security definer
 set search_path=public
 as $$
 begin
-  insert into public.profiles(id,full_name,phone,is_verified)
+  insert into public.profiles(id,full_name,shop_name,phone,is_verified)
   values(
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name',''),
+    coalesce(new.raw_user_meta_data->>'shop_name',''),
     coalesce(new.raw_user_meta_data->>'phone',''),
     coalesce(new.email_confirmed_at is not null,false)
   )
   on conflict(id) do update set
     full_name=excluded.full_name,
+    shop_name=excluded.shop_name,
     phone=excluded.phone;
   return new;
 end;

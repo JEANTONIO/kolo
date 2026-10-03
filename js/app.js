@@ -77,7 +77,7 @@ function render(){
 function view(id){
   const x=state.items.find(i=>Number(i.id)===Number(id));
   if(!x)return;
-  modal(`<span class="eyebrow">Annonce</span><h2>${esc(x.title)}</h2><p class="price">${money(x.price)}</p>${x.image_url?`<img style="width:100%;border-radius:14px;max-height:330px;object-fit:cover" src="${esc(x.image_url)}" alt="${esc(x.title)}" loading="lazy">`:''}<p>${esc(x.description)}</p><p>📍 ${esc(x.neighborhood)}, ${esc(x.city)}</p><p>👤 ${esc(x.seller_name)}</p><button type="button" class="btn primary" id="contactSeller">Contacter le vendeur</button>`);
+  modal(`<span class="eyebrow">Annonce</span><h2>${esc(x.title)}</h2><p class="price">${money(x.price)}</p>${x.image_url?`<img style="width:100%;border-radius:14px;max-height:330px;object-fit:cover" src="${esc(x.image_url)}" alt="${esc(x.title)}" loading="lazy">`:''}<p>${esc(x.description)}</p><p>📍 ${esc(x.neighborhood)}, ${esc(x.city)}</p><p>👤 ${esc(x.seller_name)}${x.seller_shop_name?` · 🏪 ${esc(x.seller_shop_name)}`:''}</p><p>📞 ${esc(x.seller_phone||'')}</p><button type="button" class="btn primary" id="contactSeller">Contacter le vendeur</button>`);
   $('#contactSeller').onclick=()=>contact(x.id);
 }
 
@@ -87,25 +87,36 @@ async function favorite(id){
   if(error)showError(error.message);else alert('Annonce ajoutée aux favoris.');
 }
 
+function normalizePhone(phone){
+  let n=String(phone||'').trim().replace(/[^\d+]/g,'');
+  if(n.startsWith('00')) n='+'+n.slice(2);
+  if(n.startsWith('0')) n='+242'+n.slice(1);
+  return n;
+}
+
+function contactPhone(phone, label='ce numéro'){
+  const normalized=normalizePhone(phone);
+  if(!normalized || normalized.replace(/\D/g,'').length < 8)return showError(`Le numéro de ${label} est invalide ou indisponible.`);
+  const wa=normalized.replace(/\D/g,'');
+  modal(`<span class="eyebrow">Choisir le contact</span><h2>Comment veux-tu contacter ?</h2>
+    <p>Choisis l'application à utiliser pour le numéro <strong>${esc(phone)}</strong>.</p>
+    <div class="contact-choice" style="display:grid;gap:12px;margin-top:18px">
+      <button type="button" class="btn primary" id="chooseWhatsapp">💬 WhatsApp</button>
+      <button type="button" class="btn outline" id="choosePhone">📞 Téléphone</button>
+    </div>`);
+  $('#chooseWhatsapp').onclick=()=>{ window.location.href=`https://wa.me/${wa}`; close(); };
+  $('#choosePhone').onclick=()=>{ window.location.href=`tel:${normalized}`; close(); };
+}
+
 function contact(id){
   const x=state.items.find(i=>Number(i.id)===Number(id));
   if(!x)return;
   if(String(x.owner_id)===String(state.user?.id||''))return showError('Tu ne peux pas te contacter toi-même.');
-
-  const phone=String(x.seller_phone||'').trim();
-  if(!phone){
-    return showError('Le numéro du vendeur n’est pas disponible pour cette annonce.');
-  }
-
-  // Le schéma tel: demande au système d’ouvrir l’application
-  // appropriée (Téléphone, FaceTime, Skype, etc. selon l’appareil).
-  const normalized=phone.replace(/[^0-9+]/g,'');
-  if(!normalized)return showError('Le numéro du vendeur est invalide.');
-  window.location.href=`tel:${normalized}`;
+  contactPhone(x.seller_phone,'ce vendeur');
 }
-
 function login(message=''){
-  modal(`<span class="eyebrow">Compte KÔLÔ</span><h2>Se connecter</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="login" class="form"><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" minlength="6" required></label><button type="submit" class="btn primary">Se connecter</button></form>`);
+  modal(`<span class="eyebrow">Compte KÔLÔ</span><h2>Se connecter</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="login" class="form"><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" minlength="6" required></label><button type="submit" class="btn primary">Se connecter</button><button type="button" class="btn outline" id="forgotPassword">Mot de passe oublié ?</button></form>`);
+  $('#forgotPassword').onclick=()=>forgotPassword();
   $('#login').onsubmit=async e=>{
     e.preventDefault();
     const f=new FormData(e.target);
@@ -114,13 +125,37 @@ function login(message=''){
   };
 }
 
+async function forgotPassword(){
+  const email=prompt('Entre l’adresse e-mail de ton compte KÔLÔ :');
+  if(!email)return;
+  const {error}=await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo:AUTH_REDIRECT_URL});
+  if(error)return showError(error.message);
+  alert('Un lien de réinitialisation a été envoyé à ton adresse e-mail.');
+}
+
+async function updateForgottenPassword(){
+  const {data}=await sb.auth.getSession();
+  if(!data.session)return;
+  modal(`<span class="eyebrow">Sécurité du compte</span><h2>Nouveau mot de passe</h2><form id="resetPasswordForm" class="form"><label>Nouveau mot de passe<input name="password" type="password" minlength="6" autocomplete="new-password" required></label><label>Confirmer le mot de passe<input name="confirm" type="password" minlength="6" autocomplete="new-password" required></label><button type="submit" class="btn primary">Enregistrer</button></form>`);
+  $('#resetPasswordForm').onsubmit=async e=>{
+    e.preventDefault();
+    const f=new FormData(e.target);
+    if(f.get('password')!==f.get('confirm'))return showError('Les deux mots de passe ne correspondent pas.');
+    const {error}=await sb.auth.updateUser({password:f.get('password')});
+    if(error)return showError(error.message);
+    close();
+    history.replaceState({},document.title,location.pathname);
+    alert('Mot de passe réinitialisé avec succès. Tu peux maintenant te connecter.');
+  };
+}
+
 function signup(message=''){
-  modal(`<span class="eyebrow">Rejoindre KÔLÔ</span><h2>Créer un compte</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="signup" class="form"><label>Nom complet<input name="name" autocomplete="name" required></label><label>Téléphone<input name="phone" autocomplete="tel"></label><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="6" required></label><label class="privacy-check"><input name="privacy" type="checkbox" required> <span>J'accepte la <a href="confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a>.</span></label><button type="submit" class="btn primary">Créer mon compte</button></form>`);
+  modal(`<span class="eyebrow">Rejoindre KÔLÔ</span><h2>Créer un compte</h2>${message?`<div class="notice">${esc(message)}</div>`:''}<form id="signup" class="form"><label>Nom complet<input name="name" autocomplete="name" required></label><label>Nom de la boutique<input name="shop_name" autocomplete="organization" placeholder="Nom de votre boutique" required></label><label>Téléphone<input name="phone" autocomplete="tel"></label><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Mot de passe<input name="password" type="password" autocomplete="new-password" minlength="6" required></label><label class="privacy-check"><input name="privacy" type="checkbox" required> <span>J'accepte la <a href="confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a>.</span></label><button type="submit" class="btn primary">Créer mon compte</button></form>`);
   $('#signup').onsubmit=async e=>{
     e.preventDefault();
     const f=new FormData(e.target);
     if(!f.get('privacy'))return showError('Tu dois accepter la Politique de confidentialité pour créer un compte.');
-    const {data,error}=await sb.auth.signUp({email:f.get('email'),password:f.get('password'),options:{data:{full_name:f.get('name'),phone:f.get('phone')},emailRedirectTo:AUTH_REDIRECT_URL}});
+    const {data,error}=await sb.auth.signUp({email:f.get('email'),password:f.get('password'),options:{data:{full_name:f.get('name'),shop_name:f.get('shop_name'),phone:f.get('phone')},emailRedirectTo:AUTH_REDIRECT_URL}});
     if(error)return showError(error.message);
     if(data.session){close();await refreshAuth();alert('Compte créé avec succès.');}
     else{close();alert('Compte créé. Vérifie ton email si la confirmation est activée dans Supabase.');}
@@ -154,9 +189,9 @@ function publish(){
       image_url=sb.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
     }
 
-    const {data:p,error:profileError}=await sb.from('profiles').select('full_name,phone').eq('id',state.user.id).maybeSingle();
+    const {data:p,error:profileError}=await sb.from('profiles').select('full_name,shop_name,phone').eq('id',state.user.id).maybeSingle();
     if(profileError)return showError(profileError.message);
-    const {error}=await sb.from('listings').insert({owner_id:state.user.id,title,price,category:f.get('category'),city:f.get('city'),neighborhood,description,seller_name:p?.full_name||'Utilisateur KÔLÔ',seller_phone:p?.phone||'',image_url});
+    const {error}=await sb.from('listings').insert({owner_id:state.user.id,title,price,category:f.get('category'),city:f.get('city'),neighborhood,description,seller_name:p?.full_name||'Utilisateur KÔLÔ',seller_shop_name:p?.shop_name||'',seller_phone:p?.phone||'',image_url});
     if(error)return showError(error.message);
     close();
     await load();
@@ -222,11 +257,21 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')close()};
 $('#menuBtn').onclick=()=>$('#nav').classList.toggle('mobile');
 document.querySelectorAll('#nav a').forEach(a=>a.onclick=()=>$('#nav').classList.remove('mobile'));
 
+
+document.querySelectorAll('a[href^="tel:"]').forEach(link=>{
+  const phone=link.getAttribute('href').replace(/^tel:/i,'');
+  link.removeAttribute('href');
+  link.href='#';
+  link.onclick=e=>{e.preventDefault();contactPhone(phone,'ce numéro');};
+});
+
 (async()=>{
   categories();
   const hash=new URLSearchParams(location.hash.replace(/^#/,' '));
   const search=new URLSearchParams(location.search);
   const authError=hash.get('error_description')||search.get('error_description');
+  const recovery=hash.get('type')==='recovery' || search.get('type')==='recovery';
+  if(recovery) setTimeout(()=>updateForgottenPassword(),300);
   if(authError){
     console.error('Erreur de validation e-mail:',authError);
     history.replaceState({},document.title,location.pathname);
