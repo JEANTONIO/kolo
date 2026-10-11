@@ -235,9 +235,8 @@ async function dashboard(){
 
   $('#changePassword').onclick=(e)=>{
     e.preventDefault();
-    // Le changement depuis Mon espace est une action du compte connecté :
-    // il reste dans la fenêtre modale et ne passe pas par reset-password.html.
-    changeAccountPassword();
+    // Ouvre la page dédiée au changement du mot de passe.
+    window.location.href = new URL('reset-password.html', window.location.href).href;
   };
   $('#logout').onclick=async()=>{const {error}=await sb.auth.signOut();if(error)showError(error.message);else{close();await refreshAuth();}};
   $('#profile').onsubmit=async e=>{
