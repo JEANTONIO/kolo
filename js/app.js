@@ -200,6 +200,28 @@ function publish(){
   };
 }
 
+async function changeAccountPassword(){
+  if(!state.user)return login();
+  modal(`<span class="eyebrow">Sécurité du compte</span><h2>Changer le mot de passe</h2><p class="meta">Choisis un mot de passe d’au moins 8 caractères. Tu devras le saisir deux fois pour confirmer.</p><form id="changeAccountPasswordForm" class="form"><label>Nouveau mot de passe<input name="password" type="password" autocomplete="new-password" minlength="8" required></label><label>Confirmer le nouveau mot de passe<input name="confirm" type="password" autocomplete="new-password" minlength="8" required></label><button type="submit" class="btn primary">Mettre à jour le mot de passe</button><button type="button" class="btn outline" id="cancelPasswordChange">Annuler</button></form>`);
+  $('#cancelPasswordChange').onclick=()=>dashboard();
+  $('#changeAccountPasswordForm').onsubmit=async e=>{
+    e.preventDefault();
+    const form=e.currentTarget;
+    const f=new FormData(form);
+    const password=String(f.get('password')||'');
+    const confirmation=String(f.get('confirm')||'');
+    if(password.length<8)return showError('Le mot de passe doit contenir au moins 8 caractères.');
+    if(password!==confirmation)return showError('Les deux mots de passe ne correspondent pas.');
+    const submit=form.querySelector('button[type="submit"]');
+    submit.disabled=true;
+    submit.textContent='Mise à jour…';
+    const {error}=await sb.auth.updateUser({password});
+    if(error){submit.disabled=false;submit.textContent='Mettre à jour le mot de passe';return showError(error.message);}
+    modal(`<span class="eyebrow">Sécurité du compte</span><h2>Mot de passe modifié</h2><p>Ton nouveau mot de passe a été enregistré avec succès.</p><button type="button" class="btn primary" id="passwordChangeDone">Retour à mon espace</button>`);
+    $('#passwordChangeDone').onclick=()=>dashboard();
+  };
+}
+
 async function dashboard(){
   if(!state.user)return login();
   const [{data:p,error:profileError},{data:mine,error:mineError},{data:favs,error:favError}]=await Promise.all([
@@ -209,8 +231,9 @@ async function dashboard(){
   ]);
   if(profileError||mineError||favError)return showError((profileError||mineError||favError).message);
 
-  modal(`<span class="eyebrow">Mon espace</span><h2>${esc(p?.full_name||'Mon compte')}</h2><div class="profile-nav"><button type="button" class="btn outline" id="logout">Déconnexion</button></div><h3>Mon profil</h3><form id="profile" class="form"><label>Nom complet<input name="name" value="${esc(p?.full_name||'')}" maxlength="100" required></label><label>Téléphone<input name="phone" value="${esc(p?.phone||'')}" maxlength="30"></label><label>Ville<input name="city" value="${esc(p?.city||'')}" maxlength="80"></label><button type="submit" class="btn primary">Enregistrer</button></form><h3>Mes annonces (${mine?.length||0})</h3>${(mine||[]).map(x=>`<div class="list-row"><span><b>${esc(x.title)}</b><br><small>${money(x.price)}</small></span><button type="button" class="btn outline" data-delete="${x.id}">Supprimer</button></div>`).join('')||'<p class="meta">Aucune annonce.</p>'}<p class="meta">Favoris enregistrés : ${favs?.length||0}</p>`);
+  modal(`<span class="eyebrow">Mon espace</span><h2>${esc(p?.full_name||'Mon compte')}</h2><div class="profile-nav"><button type="button" class="btn outline" id="changePassword">Changer le mot de passe</button><button type="button" class="btn outline" id="logout">Déconnexion</button></div><h3>Mon profil</h3><form id="profile" class="form"><label>Nom complet<input name="name" value="${esc(p?.full_name||'')}" maxlength="100" required></label><label>Téléphone<input name="phone" value="${esc(p?.phone||'')}" maxlength="30"></label><label>Ville<input name="city" value="${esc(p?.city||'')}" maxlength="80"></label><button type="submit" class="btn primary">Enregistrer</button></form><h3>Mes annonces (${mine?.length||0})</h3>${(mine||[]).map(x=>`<div class="list-row"><span><b>${esc(x.title)}</b><br><small>${money(x.price)}</small></span><button type="button" class="btn outline" data-delete="${x.id}">Supprimer</button></div>`).join('')||'<p class="meta">Aucune annonce.</p>'}<p class="meta">Favoris enregistrés : ${favs?.length||0}</p>`);
 
+  $('#changePassword').onclick=()=>changeAccountPassword();
   $('#logout').onclick=async()=>{const {error}=await sb.auth.signOut();if(error)showError(error.message);else{close();await refreshAuth();}};
   $('#profile').onsubmit=async e=>{
     e.preventDefault();
