@@ -233,7 +233,12 @@ async function dashboard(){
 
   modal(`<span class="eyebrow">Mon espace</span><h2>${esc(p?.full_name||'Mon compte')}</h2><div class="profile-nav"><button type="button" class="btn outline" id="changePassword">Changer le mot de passe</button><button type="button" class="btn outline" id="logout">Déconnexion</button></div><h3>Mon profil</h3><form id="profile" class="form"><label>Nom complet<input name="name" value="${esc(p?.full_name||'')}" maxlength="100" required></label><label>Téléphone<input name="phone" value="${esc(p?.phone||'')}" maxlength="30"></label><label>Ville<input name="city" value="${esc(p?.city||'')}" maxlength="80"></label><button type="submit" class="btn primary">Enregistrer</button></form><h3>Mes annonces (${mine?.length||0})</h3>${(mine||[]).map(x=>`<div class="list-row"><span><b>${esc(x.title)}</b><br><small>${money(x.price)}</small></span><button type="button" class="btn outline" data-delete="${x.id}">Supprimer</button></div>`).join('')||'<p class="meta">Aucune annonce.</p>'}<p class="meta">Favoris enregistrés : ${favs?.length||0}</p>`);
 
-  $('#changePassword').onclick=()=>changeAccountPassword();
+  $('#changePassword').onclick=(e)=>{
+    e.preventDefault();
+    // Le changement depuis Mon espace est une action du compte connecté :
+    // il reste dans la fenêtre modale et ne passe pas par reset-password.html.
+    changeAccountPassword();
+  };
   $('#logout').onclick=async()=>{const {error}=await sb.auth.signOut();if(error)showError(error.message);else{close();await refreshAuth();}};
   $('#profile').onsubmit=async e=>{
     e.preventDefault();
