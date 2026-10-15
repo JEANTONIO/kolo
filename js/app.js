@@ -88,16 +88,21 @@ async function favorite(id){
   if(error)showError(error.message);else alert('Annonce ajoutée aux favoris.');
 }
 
-function normalizePhone(phone){
-  let n=String(phone||'').trim().replace(/[^\d+]/g,'');
-  if(n.startsWith('00')) n='+'+n.slice(2);
-  if(n.startsWith('0')) n='+242'+n.slice(1);
-  return n;
+
+function normalizePhone(phone) {
+  let n = String(phone || '').trim().replace(/\D/g, '');
+  if (n.startsWith('00')) {
+    n = n.slice(2);
+  }
+  if (n.startsWith('242')) {
+    n = n.slice(3);
+  }
+  return '+242' + n;
 }
 
 function contactPhone(phone, label='ce numéro'){
   const normalized=normalizePhone(phone);
-  if(!normalized || normalized.replace(/\D/g,'').length < 8)return showError(`Le numéro de ${label} est invalide ou indisponible.`);
+  if(!normalized || normalized.replace(/\D/g,'').length < 9)return showError(`Le numéro de ${label} est invalide ou indisponible.`);
   const wa=normalized.replace(/\D/g,'');
   modal(`<span class="eyebrow">Choisir le contact</span><h2>Comment veux-tu contacter ?</h2>
     <p>Choisis l'application à utiliser pour le numéro <strong>${esc(phone)}</strong>.</p>
